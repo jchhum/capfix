@@ -1,0 +1,169 @@
+---
+title: "UK Accidents from 2005 - 2015"
+author: "Jon Chhum"
+date: "11/25/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd("/Users/jonchhum/Documents/Uk Accidents")
+```
+
+```{r}
+Vehicles0515.csv <- read.csv("/Users/jonchhum/Documents/Uk Accidents/Vehicles0515.csv") 
+Accidents0515.csv <- read.csv("/Users/jonchhum/Documents/Uk Accidents/Accidents0515.csv")
+Casualties0515.csv <- read.csv("/Users/jonchhum/Documents/Uk Accidents/Casualties0515.csv")
+```
+
+```{r}
+install.packages("ggplot2")
+```
+
+
+```{r}
+library(ggplot2)
+library(scales)
+library(magrittr)
+library(pipeR)
+library(wrapr)
+library(maps)
+library(ggmap)
+library(mapdata)
+library(tidyr)
+library(tidyverse)
+library(tidyselect)
+library(data.table)
+library(operators)
+library(dplyr)
+library(lubridate)
+```
+
+```{r}
+merge.all <- function(x,y) {
+  merge(x,y, all = TRUE, by = listCols)
+}
+listCols <- c(colnames(Accidents0515.csv)[1])
+accidents.uk <- Reduce(merge.all, list(Accidents0515.csv,Vehicles0515.csv))
+rm(Vehicles0515.csv)
+rm(Accidents0515.csv)
+str(accidents.uk)
+```
+
+```{r}
+dplyr::summarise(accidents.uk, avg = mean(Police_Force))
+dplyr::summarise(accidents.uk, avg = mean(Accident_Severity))
+dplyr::summarise(accidents.uk, avg = mean(Number_of_Vehicles))
+dplyr::summarise(accidents.uk, avg = mean(Number_of_Casualties))
+dplyr::summarise(accidents.uk, avg = mean(Road_Type))
+```
+
+```{r}
+accidents.uk$Date<- as.Date(accidents.uk$Date, "%d/%m/%Y")
+```
+
+```{r}
+sort(sapply(accidents.uk, function(x) sum(is.na(x))),decreasing = TRUE)
+accidents.uk$`2nd_road_class` <-NULL
+accidents.uk$date<-NULL
+accidents.uk$police_officer_attend<-NULL
+accidents.uk$vehicle_propulsion_code<-NULL
+```
+
+```{r}
+str(accidents.uk)
+```
+
+```{r}
+accidents.uk %>%
+  filter(Accident_Severity=="Fatal") %>%
+  group_by(time_slot) %>%
+  summarize(total_accidents=n_distinct(Accident_Index)) %>%
+  ggplot(aes(x=time_slot, y=total_accidents)) +
+  geom_bar(stat = "identity", fill="steelblue") +
+  geom_text(aes(label = total_accidents, vjust=1.6, color="black", size=3)) +
+  cale_x_continuous(breaks = round(seq(0, 24, by = 2),0)) +
+    ggtitle("Total Fatal Accidents by Hours from 2005 to 2014") +
+    xlab("Hours") + ylab("Total Accidents")+
+    theme(plot.title = element_text(hjust = 0.5), panel.background = element_blank())
+```
+
+
+```{r}
+accidents.uk %>%
+  group_by(Day_of_Week) %>%
+  summarize(total_accidents=n_distinct(Accident_Index)) %>%
+  ggplot(aes(x=Day_of_Week, y=total_accidents)) +
+  geom_bar(stat = "identity", fill="steelblue") +
+  geom_text(aes(label = total_accidents), vjust = 1.6, color = "white", size=3.5)+
+  theme_minimal()
+```
+
+```{r}
+accidents.uk %>%
+  group_by(Weather_Conditions,Accident_Severity) %>%
+  summarize(total_accidents=n_distinct(Accident_Index)) %>%
+  ggplot(aes(x = Accident_Severity, y = total_accidents, fill = Weather_Conditions)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Accident Severity by Weather") +
+  xlab("Accident Severity") + ylab("Total Accidents") +
+  theme(plot.title =  element_text(hjust = 0.5), panel.background = element_blank(),axis.title.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+ accidents.uk%>% 
+  group_by(Age_Band_of_Driver, Accident_Severity) %>%
+  summarize(total_accidents=n_distinct(Accident_Index)) %>%
+  ggplot(aes(x = Accident_Severity, y = total_accidents,fill = Age_Band_of_Driver)) + 
+  geom_bar(stat = "identity", postion = "dodge") +
+  ggtitle("Accident by Age of Driver") +
+  xlab("Accident Severity") + ylab("Total Accidents") +
+  theme(plot.title = element_text(hjust = 0.5), panel.background = element_blank(), axis.text.x = element_text(angle = 45,hjust = 1))
+```
+
+```{r}
+temp=accidents.uk %>%
+  group_by(Weather_Conditions,Accident_Severity) %>%
+  summarise(total_accidents=n_distinct(Accident_Index)) %>%
+  mutate(freq= percent(total_accidents / sum(total_accidents)))
+  ggplot(data=temp, aes(x=Accident_Severity, y = freq, fill = Weather_Conditions)) +
+  geom_bar(stat = "identity", postion = "dodge") +
+  ggtitle("Accident Severity Proportion By Weather") +
+  xlab("Accident Severity") + ylab("Accident Proportion") +
+  theme(plot.title = element_text(hjust = 0.5), panel.background = element_blank(), axis.text.y=element_blank(), axis.ticks.y=element_blank())
+```
+
+```{r}
+accidents.uk %>%
+  filter(Urban_or_Rural_Area!="Unallocated") %>%
+  group_by(Urban_or_Rural_Area,Accident_Severity) %>%
+  summarize(total_accidents=n_distinct(Accident_Index)) %>%
+  ggplot(aes(x = Accident_Severity, y = total_accidents, fill = Urban_or_Rural_Area)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Accident Severity By Area") +
+  xlab("Accident Severity") + ylab = ("Total Accidents") +
+  theme(plot.title = element_text(hjust = 0.5), panel.background = element_blank(), axis.title.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+accidents.uk %>%
+  group_by(Junction_Detail,Accident_Severity) %>%
+  filter(Junction_Detail!="Data Missing / Out of Range") %>%
+  summarize(total_accidents=n_distinct(Accident_Index)) %>%
+  mutate(freq = percent(total_accidents / sum(total_accidents))) %>%
+  ggplot(aes(x=Accident_Severity, y = freq,fill=Junction_Detail)) +
+  geom_bar(stat = "identity", postion = "dodge") +
+  ggtitle("Accident Severity Propertion by Junction Type") +
+  theme(plot.title = element_text(hjust = 0.5), panel.background = element_blank(), axis.ticks.length.y = element_blank())
+```
+
+```{r}
+library(ggplot2)
+UK <- map_data(map = "world", region = "UK") 
+ggplot(data = UK, aes(x = long, y = lat, group = group)) + geom_polygon(aes(x = long, y = lat, fill = region, group = group),color = "white") +
+coord_fixed(1.3) +
+guides(fill = FALSE)
+```
